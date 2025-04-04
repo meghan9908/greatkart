@@ -46,6 +46,8 @@ beautifulsoup4==4.12.3
 soupsieve==2.5
 bleach==6.1.0
 WeasyPrint>=52.0
+six>=1.15.0
+
 
 # Optional extras (comment out if not needed)
 # matplotlib==3.7.5

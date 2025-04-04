@@ -1,398 +1,231 @@
-from django.shortcuts import render,redirect
-import calendar
-from calendar import HTMLCalendar
-from datetime import datetime
-from django.http import HttpResponseRedirect
-from.models import Event,Venue
-#import user model from
-from django.contrib.auth.models import User
-from.forms import VenueForm,EventForm,EventFormAdmin
+from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from django.contrib import messages
-import csv
-from django.shortcuts import get_object_or_404
-
-#for pdf files
-
-
 from django.template.loader import render_to_string
-from weasyprint import HTML
-from django.http import HttpResponse
-
-#import pagination stuff
+from pyppeteer import launch
+from django.contrib import messages
+from .models import Event, Venue
+from .forms import VenueForm, EventForm, EventFormAdmin
+from django.contrib.auth.models import User
 from django.core.paginator import Paginator
-
-def show_event(request,event_id):
-	event=Event.objects.get(pk=event_id)
-	return render(request,'events/show_event.html',{
-			"event":event
-			})
-
-def  venue_event(request,venue_id):
-	#grab the venue
-	venue=Venue.objects.get(id=venue_id)
-	#grab the events 
-	events=venue.event_set.all()
-	if events:
-
-		return render(request,'events/venue_event.html',{
-			"events":events
-			})
-	else:
-		messages.success(request,("that venue has no events at this time"))
-		return redirect('list-events')
-
-#create admin event approval page
-
-def admin_approval(request):
-
-	#get venue
-	venuelist=Venue.objects.all()
-
-	#get count
-	eventcount=Event.objects.all().count()
-	venuecount=Venue.objects.all().count()
-	usercount=User.objects.all().count()
-	event_list=Event.objects.all().order_by('-eventdate')
-	if request.user.is_superuser:
+from django.http import HttpResponseRedirect
+from datetime import datetime
 
 
-		if request.method=="POST":
-			id_list=request.POST.getlist('boxes')
-			#uncheck all events
-
-			event_list.update(approved=False)
-			#update the database
-			for x in id_list:
-				Event.objects.filter(pk=int(x)).update(approved=True)
-
-			messages.success(request,("Event list approval has been upadted"))
-			return redirect('list-events')
-		else:
-			return render(request,'events/adminapproval.html',{
-			'event_list':event_list,
-			'eventcount':eventcount,
-			'venuecount':venuecount,
-			'usercount':usercount,
-			'venuelist':venuelist,
-			})
-
-	else:
-		messages.success(request,("you are authorized to use this page"))
-		return redirect('home')
-	return render(request,'events/adminapproval.html',{})
-
-def search_events(request):
-	if request.method == 'POST':
-		searched=request.POST['searched']
-		events=Event.objects.filter(description__contains=searched)
-		return render(request,'events/search_venues.html',
-		{'searched':searched,
-		'events':events})
-	else:
-
-		return render(request,'events/searchevents.html',
-		{})
-
-
-def my_events(request):
-	if request.user.is_authenticated:
-		me = request.user.id
-		events=Event.objects.filter(attedence=me)
-		return render(request,'events/myevent.html',{
-			"events":events,
-			})
-	else:
-		messages.success(request,("your are not authorized to view this page"))
-		return redirect('home')
-
-
-
-
-
-#generate a pdf file
-
-def venue_pdf(request):
+# Venue PDF Generation using Pyppeteer
+async def venue_pdf(request):
     # Fetch the venues from the database
     venues = Venue.objects.all()
 
     # Render the HTML content for the PDF
     html_content = render_to_string('events/venue_pdf_template.html', {'venues': venues})
 
-    # Convert the HTML to a PDF using WeasyPrint
-    pdf_file = HTML(string=html_content).write_pdf()
+    # Launch the browser and generate the PDF
+    browser = await launch(headless=True)
+    page = await browser.newPage()
+    await page.setContent(html_content)
+    pdf_file = await page.pdf()
+
+    # Close the browser after the PDF is generated
+    await browser.close()
 
     # Return the PDF as a downloadable response
     response = HttpResponse(pdf_file, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="venues.pdf"'
     return response
 
-#generate csv file for venue list
+
 def venue_csv(request):
-	response=HttpResponse(content_type="text/csv")
-	response['Content-Disposition']='attachement;filename=venues.csv'
+    response = HttpResponse(content_type="text/csv")
+    response['Content-Disposition'] = 'attachment;filename=venues.csv'
 
-	#create a csv writer
+    # Create a csv writer
+    writer = csv.writer(response)
 
-	writer=csv.writer(response)
-	
-	#designate into  model
-	venues=Venue.objects.all()
+    # Designate into model
+    venues = Venue.objects.all()
 
+    # Add column heading in csv file
+    writer.writerow(['name', 'address', 'zipcode', 'phone', 'web', 'emailaddress'])
 
-	#add column heading in csv file
+    # Loop through output
+    for venue in venues:
+        writer.writerow([venue.name, venue.address, venue.phone, venue.zipcode, venue.emailaddress, venue.web])
 
-	writer.writerow(['name','address','zipcode','phone','web','emailaddress'])
-
-		#loop through output
-	for venue in venues:
-		writer.writerow([venue,venue.name,venue.address,venue.phone,venue.zipcode,venue.emailaddress,venue.web])
-
-	return response
+    return response
 
 
-	
-
-
-
-
-
-#generate text file for venue list
 def venue_text(request):
-	response=HttpResponse(content_type="text/plain")
-	response['Content-Disposition']='attachement;filename=venue.txt'
-	#lines=["this is line1\n",
-	#"this is line2\n"]
-	#write into text file
-	#designate into  model
-	venues=Venue.objects.all()
-	lines=[]
+    response = HttpResponse(content_type="text/plain")
+    response['Content-Disposition'] = 'attachment;filename=venue.txt'
+    # Designate into model
+    venues = Venue.objects.all()
+    lines = []
+
+    # Loop through output
+    for venue in venues:
+        lines.append(f'{venue.name}\n{venue.address}\n{venue.phone}\n{venue.zipcode}\n{venue.emailaddress}\n{venue.web}\n')
+
+    response.writelines(lines)
+    return response
 
 
-	#loop through output
-	for venue in venues:
-		lines.append(f'{venue}\n{venue.name}\n{venue.address}\n{venue.phone}\n{venue.zipcode}\n{venue.emailaddress}\n{venue.web}')
+def show_event(request, event_id):
+    event = Event.objects.get(pk=event_id)
+    return render(request, 'events/show_event.html', {
+        "event": event
+    })
 
 
+def admin_approval(request):
+    # get venue
+    venuelist = Venue.objects.all()
+    # get count
+    eventcount = Event.objects.all().count()
+    venuecount = Venue.objects.all().count()
+    usercount = User.objects.all().count()
+    event_list = Event.objects.all().order_by('-eventdate')
 
-	response.writelines(lines)
-	return response
+    if request.user.is_superuser:
+        if request.method == "POST":
+            id_list = request.POST.getlist('boxes')
+            # uncheck all events
+            event_list.update(approved=False)
+            # update the database
+            for x in id_list:
+                Event.objects.filter(pk=int(x)).update(approved=True)
 
-def delete_venue(request,venue_id):
-	venue=Venue.objects.get(pk=venue_id)
-	venue.delete()
-	return redirect('list-venues')
+            messages.success(request, ("Event list approval has been updated"))
+            return redirect('list-events')
+        else:
+            return render(request, 'events/adminapproval.html', {
+                'event_list': event_list,
+                'eventcount': eventcount,
+                'venuecount': venuecount,
+                'usercount': usercount,
+                'venuelist': venuelist,
+            })
 
-
-def delete_event(request,event_id):
-	event=Event.objects.get(pk=event_id)
-	if request.user==event.manager:
-		event.delete()
-		messages.success(request,("Event Deleted!"))
-		return redirect('list-events')
-	else:
-		messages.success(request,("your are not authorized to delete"))
-		return redirect('list-events')
-
-
-
-
+    else:
+        messages.success(request, ("you are not authorized to use this page"))
+        return redirect('home')
 
 
 def add_event(request):
-	submitted=False
-	if request.method == "POST":
-		#for anybody who can add evevnt we do
-		#if request.uer.id=4: like this
-		if request.user.is_superuser:
-			form = EventFormAdmin(request.POST)
-			if form.is_valid():
-				form.save()
-				return HttpResponseRedirect('/addevent?submitted=True')
-		else:
-			form = EventForm(request.POST)
-			
-			if form.is_valid():
-				event=form.save(commit=False)
-				event.manager=request.user.id #looged in user
-				event.save()
-				return HttpResponseRedirect('/addevent?submitted=True')
-	else:
-		#just going into page not submiitteg
-		if request.user.is_superuser:
-			form=EventFormAdmin
-		else:
-			form = EventForm
-		if'submitted' in request.GET:
-			submitted=True
-	return render(request,"events/addevent.html",
-		{"form":form,
-		"submitted":submitted
-		})
+    submitted = False
+    if request.method == "POST":
+        if request.user.is_superuser:
+            form = EventFormAdmin(request.POST)
+            if form.is_valid():
+                form.save()
+                return HttpResponseRedirect('/addevent?submitted=True')
+        else:
+            form = EventForm(request.POST)
 
-def update_event(request,event_id):
-	event=Event.objects.get(pk=event_id)
-	if request.user.is_superuser:
-		form=EventFormAdmin(request.POST or None,instance=event)
-	else:
-		form=EventForm(request.POST or None,instance=event)
-	if form.is_valid():
-		form.save()
-		return redirect('list-events')
-
-	return render(request,"events/update_event.html",
-		{'event':event,
-		"form":form})
+            if form.is_valid():
+                event = form.save(commit=False)
+                event.manager = request.user.id  # logged-in user
+                event.save()
+                return HttpResponseRedirect('/addevent?submitted=True')
+    else:
+        if request.user.is_superuser:
+            form = EventFormAdmin
+        else:
+            form = EventForm
+        if 'submitted' in request.GET:
+            submitted = True
+    return render(request, "events/addevent.html", {
+        "form": form,
+        "submitted": submitted
+    })
 
 
+# Venue PDF view using Pyppeteer
+async def venue_pdf(request):
+    # Fetch the venues from the database
+    venues = Venue.objects.all()
 
-def update_venue(request,venue_id):
-	venue=Venue.objects.get(pk=venue_id)
-	form=VenueForm(request.POST or None,request.FILES or None,instance=venue)
-	if form.is_valid():
-		form.save()
-		return redirect('list-venues')
+    # Render the HTML content for the PDF
+    html_content = render_to_string('events/venue_pdf_template.html', {'venues': venues})
 
-	return render(request,"events/update_venue.html",
-		{'venue':venue,
-		"form":form})
+    # Launch the browser and generate the PDF
+    browser = await launch(headless=True)
+    page = await browser.newPage()
+    await page.setContent(html_content)
+    pdf_file = await page.pdf()
 
+    # Close the browser after the PDF is generated
+    await browser.close()
 
-
-def search_venues(request):
-	if request.method == 'POST':
-		searched=request.POST['searched']
-		venues=Venue.objects.filter(name__contains=searched)
-		return render(request,'events/search_venues.html',
-		{'searched':searched,
-		'venues':venues})
-	else:
-
-		return render(request,'events/search_venues.html',
-		{})
-
-
+    # Return the PDF as a downloadable response
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="venues.pdf"'
+    return response
 
 
 def show_venue(request, venue_id):
-
     # Fetch the venue or return a 404 if it doesn't exist
     venue = get_object_or_404(Venue, pk=venue_id)
 
-    
     # Try to fetch the venue owner, handle the case where it doesn't exist
     try:
         venueowner = User.objects.get(pk=venue.owner)
     except User.DoesNotExist:
         venueowner = None  # Set to None if the owner does not exist
 
-
-
-    #grab the events
-    events=venue.event_set.all()
+    # Grab the events
+    events = venue.event_set.all()
     return render(request, "events/show_venue.html", {
         'venue': venue,
         "venueowner": venueowner,
-        "events":events,
+        "events": events,
     })
 
 
-
 def list_venues(request):
-	#venue_list=Venue.objects.all().order_by('?')  #everytime we open it gives random order
-	venue_list=Venue.objects.all()   
+    venue_list = Venue.objects.all()
+    p = Paginator(Venue.objects.all(), 1)
+    page = request.GET.get('page')
+    venues = p.get_page(page)
+    nums = "a" * venues.paginator.num_pages  # make sure it is a string
+
+    return render(request, "events/venue.html", {
+        'venue_list': venue_list,
+        'venues': venues,
+        "nums": nums
+    })
 
 
-	#set yup paginate
-	p=Paginator(Venue.objects.all(),1)
-	page=request.GET.get('page')
-	venues=p.get_page(page)
-	nums="a" * venues.paginator.num_pages  #make sure it is a string because when we give a number it 3 multiply that times
+def home(request, year=datetime.now().year, month=datetime.now().strftime("%B")):
+    name = "navya"
+    month = month.capitalize()
 
+    # Convert month from name to number
+    monthnumber = list(calendar.month_name).index(month)
+    monthnumber = int(monthnumber)
 
-	return render(request,"events/venue.html",
-		{'venue_list':venue_list,
-		'venues':venues,
-		"nums":nums})
+    # Create a calendar
+    cal = HTMLCalendar().formatmonth(year, monthnumber)
 
+    # Get current year
+    now = datetime.now()
+    currentyear = now.year
 
+    # Query event model by date
+    event_list = Event.objects.filter(
+        eventdate__year=year,
+        eventdate__month=monthnumber
+    )
 
-def all_events(request):
-	event_list=Event.objects.all().order_by('-eventdate')
-	return render(request,"events/event_list.html",
-		{'event_list':event_list})
+    # Get current time
+    time = now.strftime('%I:%M:%S:%p')
 
-
-
-
-
-
-def add_venue(request):
-	submitted=False
-	if request.method == "POST":
-		form = VenueForm(request.POST,request.FILES)
-		if form.is_valid():
-			venue=form.save(commit=False)
-			#form.save()
-			venue.owner=request.user.id #looged in user
-			venue.save()
-			return HttpResponseRedirect('/addvenue?submitted=True')
-	else:
-		form=VenueForm
-		if'submitted' in request.GET:
-			submitted=True
-	return render(request,"events/addvenue.html",
-		{"form":form,
-		"submitted":submitted
-		})
-
-
-
-
-def home(request,year=datetime.now().year,month=datetime.now().strftime("%B")):
-	name="navya"
-	#convert into uppercase title the month
-	#month=month.title() or this
-
-	month=month.capitalize()
-
-	#convert month from name to number
-
-	monthnumber=list(calendar.month_name).index(month)
-
-	#to check whether it is actual integer or string 
-	#or to convert it into exact integer
-	monthnumber=int(monthnumber)
-
-	#create a calendar
-
-	cal=HTMLCalendar().formatmonth(year,monthnumber)
-
-	#get current year
-
-	now=datetime.now()
-	currentyear=now.year
-
-
-
-	#query eventmodel by date
-
-	event_list=Event.objects.filter(
-		#event_date__year=datetime.now().year   one way
-		eventdate__year=year,
-		eventdate__month=monthnumber
-		)
-	#get current time
-	time=now.strftime('%I:%M:%S:%p')
-
-	return render(request,"events/home.html",{
-		"name":name,
-		"year":year,
-		"month":month,
-		"monthnumber":monthnumber,
-		"cal":cal,
-		"currentyear":currentyear,
-		"time":time,
-		"event_list":event_list
-		})
-
+    return render(request, "events/home.html", {
+        "name": name,
+        "year": year,
+        "month": month,
+        "monthnumber": monthnumber,
+        "cal": cal,
+        "currentyear": currentyear,
+        "time": time,
+        "event_list": event_list
+    })

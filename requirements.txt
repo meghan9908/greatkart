@@ -45,7 +45,7 @@ Pillow==7.0.0
 beautifulsoup4==4.12.3
 soupsieve==2.5
 bleach==6.1.0
-WeasyPrint>=52.0
+pyppeteer>=2.0.0
 html5lib==1.1
 
 

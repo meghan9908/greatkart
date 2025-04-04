@@ -1,0 +1,48 @@
+<footer class="bg-dark text-light py-4 w-100">
+  <div class="container-fluid">
+    <div class="row text-center text-md-start">
+      
+      <!-- About Section -->
+      <div class="col-md-4">
+        <h5>About MY CLUB</h5>
+        <p>MY CLUB is your go-to platform for managing events and venues effortlessly.</p>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="col-md-4">
+        <h5>Quick Links</h5>
+        <ul class="list-unstyled">
+          <li><a href="{% url 'home' %}" class="text-light text-decoration-none">Home</a></li>
+          <li><a href="{% url 'list-events' %}" class="text-light text-decoration-none">All Events</a></li>
+          <li><a href="{% url 'list-venues' %}" class="text-light text-decoration-none">Venues</a></li>
+          {% if user.is_authenticated %}
+            <li><a href="{% url 'my-events' %}" class="text-light text-decoration-none">My Events</a></li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <!-- Contact & Social Media -->
+      <div class="col-md-4">
+        <h5>Contact Us</h5>
+        <p>Email: navyagubala@gmail.com</p>
+        <p>Phone: +123 456 7890</p>
+
+      <div class="container mt-4">
+        <div class="d-flex justify-content-start">
+            <a href="https://www.facebook.com/" class="text-light me-3"><i class="fab fa-facebook fa-lg"></i></a>
+            <a href="https://twitter.com/" class="text-light me-3"><i class="fab fa-twitter fa-lg"></i></a>
+            <a href="https://www.instagram.com/" class="text-light me-3"><i class="fab fa-instagram fa-lg"></i></a>
+            <a href="https://wa.me/your-number" class="text-light me-3" ><i class="fab fa-whatsapp fa-lg"></i></a>
+
+        </div>
+    </div>
+
+    </div>
+  </div>
+
+  <!-- Copyright Section -->
+  <div  class="bg-dark text-light text-center">
+    <br><br><br>
+    <p class="mb-0">&copy; 2025 MY CLUB. All Rights Reserved.</p>
+  </div>
+</footer>

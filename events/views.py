@@ -15,11 +15,10 @@ from django.shortcuts import get_object_or_404
 #for pdf files
 
 
-from django.http import FileResponse
-import io
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
-from reportlab.lib.pagesizes import letter
+from django.template.loader import render_to_string
+from weasyprint import HTML
+from django.http import HttpResponse
+
 #import pagination stuff
 from django.core.paginator import Paginator
 
@@ -114,43 +113,19 @@ def my_events(request):
 #generate a pdf file
 
 def venue_pdf(request):
-	#create Bytestream buffer
-	buf=io.BytesIO()
-	#create canvas
-	c=canvas.Canvas(buf,pagsize=letter,bottomup=0)
-	#create a text object
-	textob=c.beginText()
-	textob.setTextOrigin(inch,inch)
-	textob.setFont("Helvetica",14)
+    # Fetch the venues from the database
+    venues = Venue.objects.all()
 
-	#add some line of text
-	#lines=["this is line 1",
-	#"this is line 2"]
+    # Render the HTML content for the PDF
+    html_content = render_to_string('events/venue_pdf_template.html', {'venues': venues})
 
-	venues=Venue.objects.all()
-	#create a blank list
-	lines=[]
-	for venue in venues:
-		lines.append(venue.name)
-		lines.append(venue.address)
-		lines.append(venue.phone)
-		lines.append(venue.web)
-		lines.append(venue.zipcode)
-		lines.append(venue.emailaddress)
-		lines.append(" ")
+    # Convert the HTML to a PDF using WeasyPrint
+    pdf_file = HTML(string=html_content).write_pdf()
 
-	#for loop
-	for line in lines:
-		textob.textLine(line)
-	#finish up
-
-	c.drawText(textob)
-	c.showPage()
-	c.save()
-	buf.seek(0)
-
-	#return something
-	return FileResponse(buf,as_attachment=True,filename='venue.pdf')
+    # Return the PDF as a downloadable response
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="venues.pdf"'
+    return response
 
 #generate csv file for venue list
 def venue_csv(request):

@@ -229,3 +229,9 @@ def home(request, year=datetime.now().year, month=datetime.now().strftime("%B"))
         "time": time,
         "event_list": event_list
     })
+from django.shortcuts import render
+from .models import Event
+
+def all_events(request):
+    event_list = Event.objects.all().order_by('-eventdate')  # Get all events and order them by event date
+    return render(request, 'events/all_events.html', {'event_list': event_list})
